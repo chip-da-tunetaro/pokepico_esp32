@@ -1,0 +1,9 @@
+[submodule "component/ESP32_StreamLogger"]
+	path = component/ESP32_StreamLogger
+	url = git@github.com:0x0c/ESP32_StreamLogger.git
+[submodule "components/FreeRTOS-cpp_task"]
+	path = components/FreeRTOS-cpp_task
+	url = git@github.com:0x0c/FreeRTOS-cpp_task.git
+[submodule "components/ESP32_StreamLogger"]
+	path = components/ESP32_StreamLogger
+	url = git@github.com:0x0c/ESP32_StreamLogger.git
