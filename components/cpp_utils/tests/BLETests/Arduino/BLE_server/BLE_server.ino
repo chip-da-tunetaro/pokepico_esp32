@@ -29,6 +29,7 @@ void setup() {
   pCharacteristic->setValue("Hello World says Neil");
   pService->start();
   BLEAdvertising *pAdvertising = pServer->getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->start();
   Serial.println("Characteristic defined! Now you can read it in your phone!");
 }
