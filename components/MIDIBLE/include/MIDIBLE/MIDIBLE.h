@@ -2,6 +2,7 @@
 
 #include <BLEAdvertising.h>
 #include <BLEDevice.h>
+#include <BLE2902.h>
 #include <functional>
 #include <string>
 
@@ -186,8 +187,8 @@ namespace MIDIBLE
 			BLEDevice::init(this->name);
 			this->server = BLEDevice::createServer();
 			this->server->setCallbacks(&service_callbacks);
-			this->midi_service = server->createService(Const::ServiceUUID.c_str());
-			this->midi_characteristic = midi_service->createCharacteristic(Const::CharacteristicUUID.c_str(),
+			this->midi_service = this->server->createService(Const::ServiceUUID.c_str());
+			this->midi_characteristic = this->midi_service->createCharacteristic(Const::CharacteristicUUID.c_str(),
 			    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_WRITE_NR);
 
 			this->characteristic_callbacks.write_handler = [&](std::string rxValue) {
@@ -195,6 +196,7 @@ namespace MIDIBLE
 					this->receive((uint8_t *)(rxValue.c_str()), rxValue.length());
 				}
 			};
+			this->midi_characteristic->addDescriptor(new BLE2902());
 			this->midi_characteristic->setCallbacks(&characteristic_callbacks);
 		}
 
@@ -208,7 +210,6 @@ namespace MIDIBLE
 
 			BLEAdvertising *advertising = this->server->getAdvertising();
 			BLEAdvertisementData advertising_data;
-
 			auto udid = std::string((const char *)&this->device_udid);
 			advertising_data.setFlags(0x04);
 			advertising_data.setManufacturerData(udid);
