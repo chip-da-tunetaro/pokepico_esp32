@@ -505,6 +505,8 @@ const char* GeneralUtils::wifiErrorToString(uint8_t errCode) {
 		return "WIFI_REASON_ASSOC_FAIL";
 	case WIFI_REASON_HANDSHAKE_TIMEOUT:
 		return "WIFI_REASON_HANDSHAKE_TIMEOUT";
+	case WIFI_REASON_CONNECTION_FAIL:
+		return "WIFI_REASON_CONNECTION_FAIL";
 	}
 	return "Unknown ESP_ERR error";
 } // wifiErrorToString
@@ -537,5 +539,4 @@ std::string GeneralUtils::trim(const std::string& str)
     size_t last = str.find_last_not_of(' ');
     return str.substr(first, (last - first + 1));
 } // trim
-
 
