@@ -7,3 +7,6 @@
 [submodule "components/ESP32_StreamLogger"]
 	path = components/ESP32_StreamLogger
 	url = git@github.com:0x0c/ESP32_StreamLogger.git
+[submodule "components/ESPSG"]
+	path = components/ESPSG
+	url = https://github.com/0x0c/ESPSG.git
