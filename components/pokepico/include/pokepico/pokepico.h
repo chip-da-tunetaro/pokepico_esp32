@@ -5,6 +5,7 @@
 #include <pokepico/Cartridge.h>
 #include <string>
 
+#include <pokepico/Cartridge/AY38910.h>
 #include <pokepico/Cartridge/SAA1099.h>
 #include <pokepico/Cartridge/SN76489.h>
 
@@ -27,8 +28,6 @@ private:
 	static const gpio_num_t Check3 = GPIO_NUM_36;
 	static const gpio_num_t Check4 = GPIO_NUM_39;
 
-	std::map<uint8_t, uint8_t> playing_notes;
-
 	void congiureGPIO()
 	{
 		this->logger->info << "Congiure GPIO" << Logger::endl;
@@ -46,6 +45,11 @@ private:
 		return static_cast<PSG::Channel>(channel.rawValue() - 1);
 	}
 
+	long map(long x, long in_min, long in_max, long out_min, long out_max)
+	{
+		return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+	}
+
 public:
 	Device(std::string name, uint16_t udid)
 	{
@@ -56,35 +60,24 @@ public:
 		this->interface = new MIDIBLE::BLEInterface(name, udid);
 		this->interface->note_on_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
 			auto c = convertChannel(channel.rawValue());
+			auto volume = (uint8_t)map(velocity, 0, 255, 0, 15);
 			this->logger->info << "on:  "
 			                   << "\tMIDIBLE : " << channel.rawValue()
-			                   << "\tch : " << c << "\tnote : " << note << "\tvelocity: " << velocity << Logger::endl;
-			if (this->cartridge->validateChannel(c) == false) {
-				this->logger->info << "Invalid channel : " << c << Logger::endl;
-				return;
-			}
-			this->cartridge->setNote(c, note);
-			if (velocity == 0) {
-				// off
-				this->cartridge->setNote(c, note);
-				this->cartridge->setVolume(c, 0);
-			}
-			else {
-				this->cartridge->setVolume(c, velocity);
-			}
+			                   << "\tch : " << c
+			                   << "\tnote : " << note
+			                   << "\tvelocity: " << velocity
+			                   << "\tvolume: " << volume << Logger::endl;
+			this->playNote(c, note, volume);
 		};
 
 		this->interface->note_off_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
 			auto c = convertChannel(channel.rawValue());
 			this->logger->info << "off: "
-			                   << "\t\t"
 			                   << "\tMIDIBLE : " << channel.rawValue()
-			                   << "\tch : " << c << "\tnote : " << note << "\tvelocity: " << velocity << Logger::endl;
-			if (this->cartridge->validateChannel(c) == false) {
-				this->logger->info << "Invalid channel : " << c << Logger::endl;
-				return;
-			}
-			this->cartridge->setVolume(c, 0);
+			                   << "\tch : " << c
+			                   << "\tnote : " << note
+			                   << "\tvelocity: " << velocity << Logger::endl;
+			this->playNote(c, note, 0);
 		};
 
 		this->logger->info << "Hello pokepico ;)" << Logger::endl;
@@ -93,6 +86,22 @@ public:
 	void begin()
 	{
 		this->interface->begin();
+	}
+
+	void playNote(PSG::Channel channel, uint8_t note, uint8_t velocity)
+	{
+		if (this->cartridge->validateChannel(channel) == false) {
+			this->logger->info << "Invalid channel : " << channel << Logger::endl;
+			return;
+		}
+		this->cartridge->setNote(channel, note);
+		if (velocity == 0) {
+			// off
+			this->cartridge->setVolume(channel, 0);
+		}
+		else {
+			this->cartridge->setVolume(channel, velocity);
+		}
 	}
 
 	Cartridge::Series detectCartridge()
@@ -130,6 +139,7 @@ public:
 				break;
 			case Cartridge::Series::AY38910:
 				this->logger->info << "Register AY38910" << Logger::endl;
+				this->cartridge = new Cartridge::AY38910C();
 				break;
 			case Cartridge::Series::Undefined:
 				this->logger->info << "Undefined cartridge :(" << Logger::endl;

@@ -24,6 +24,7 @@ namespace Cartridge
 			this->saa = new PSG::SAA1099(Pin::Latch, Pin::Clock, Pin::Data, WE, CS, AZ);
 			this->saa->reset();
 			this->saa->soundEnable();
+			this->saa->setNoiseEnable(0);
 			for (int i = 0; i < 6; i++) {
 				this->saa->setVolume((PSG::Channel)i, SAA1099::OutputSide::Both, 0);
 			}
