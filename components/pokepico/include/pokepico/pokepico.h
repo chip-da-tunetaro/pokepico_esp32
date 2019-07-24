@@ -60,7 +60,7 @@ public:
 		this->interface = new MIDIBLE::BLEInterface(name, udid);
 		this->interface->note_on_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
 			auto c = convertChannel(channel.rawValue());
-			auto volume = (uint8_t)map(velocity, 0, 255, 0, 15);
+			auto volume = (uint8_t)map(velocity, 0, 128, 0, 15);
 			this->logger->info << "on:  "
 			                   << "\tMIDIBLE : " << channel.rawValue()
 			                   << "\tch : " << c
@@ -94,12 +94,12 @@ public:
 			this->logger->info << "Invalid channel : " << channel << Logger::endl;
 			return;
 		}
-		this->cartridge->setNote(channel, note);
 		if (velocity == 0) {
 			// off
 			this->cartridge->setVolume(channel, 0);
 		}
 		else {
+			this->cartridge->setNote(channel, note);
 			this->cartridge->setVolume(channel, velocity);
 		}
 	}
