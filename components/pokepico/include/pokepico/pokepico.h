@@ -6,6 +6,7 @@
 #include <string>
 
 #include <pokepico/Cartridge/SAA1099.h>
+#include <pokepico/Cartridge/SN76489.h>
 
 namespace pokepico
 {
@@ -19,60 +20,74 @@ private:
 	uint8_t device_udid;
 	MIDIBLE::BLEInterface *interface;
 	Cartridge::Interface *cartridge;
-	std::vector<uint8_t> playing_notes;
 
+	Logger::Group *logger;
 	static const gpio_num_t Check1 = GPIO_NUM_34;
 	static const gpio_num_t Check2 = GPIO_NUM_35;
 	static const gpio_num_t Check3 = GPIO_NUM_36;
 	static const gpio_num_t Check4 = GPIO_NUM_39;
 
+	std::map<uint8_t, uint8_t> playing_notes;
+
 	void congiureGPIO()
 	{
+		this->logger->info << "Congiure GPIO" << Logger::endl;
 		gpio_config_t io_conf;
 		io_conf.intr_type = (gpio_int_type_t)GPIO_PIN_INTR_DISABLE;
 		io_conf.mode = GPIO_MODE_INPUT;
-		io_conf.pin_bit_mask = ((1ULL << Check1) | (1ULL << Check2) || (1ULL << Check3) | (1ULL << Check4));
+		io_conf.pin_bit_mask = (1ULL << Check1) | (1ULL << Check2) | (1ULL << Check3) | (1ULL << Check4);
 		io_conf.pull_down_en = (gpio_pulldown_t)0;
 		io_conf.pull_up_en = (gpio_pullup_t)0;
 		gpio_config(&io_conf);
 	}
 
+	PSG::Channel convertChannel(MIDIBLE::MIDI::Channel channel)
+	{
+		return static_cast<PSG::Channel>(channel.rawValue() - 1);
+	}
+
 public:
 	Device(std::string name, uint16_t udid)
 	{
+		this->logger = new Logger::Group("pokepico");
 		this->congiureGPIO();
 		this->registerCartridge();
 
 		this->interface = new MIDIBLE::BLEInterface(name, udid);
-
-		static Logger::Group logger("pokepico");
 		this->interface->note_on_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
-			PSG::Channel c = static_cast<PSG::Channel>(channel.rawValue());
+			auto c = convertChannel(channel.rawValue());
+			this->logger->info << "on:  "
+			                   << "\tMIDIBLE : " << channel.rawValue()
+			                   << "\tch : " << c << "\tnote : " << note << "\tvelocity: " << velocity << Logger::endl;
 			if (this->cartridge->validateChannel(c) == false) {
+				this->logger->info << "Invalid channel : " << c << Logger::endl;
 				return;
 			}
 			this->cartridge->setNote(c, note);
 			if (velocity == 0) {
 				// off
+				this->cartridge->setNote(c, note);
 				this->cartridge->setVolume(c, 0);
 			}
 			else {
 				this->cartridge->setVolume(c, velocity);
 			}
-
-			logger.info << "on >> \t"
-			            << "ch : " << c << "\tnote : " << note << "\tvelocity: " << velocity << Logger::endl;
 		};
 
 		this->interface->note_off_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
-			PSG::Channel c = static_cast<PSG::Channel>(channel.rawValue());
+			auto c = convertChannel(channel.rawValue());
+			this->logger->info << "off: "
+			                   << "\t\t"
+			                   << "\tMIDIBLE : " << channel.rawValue()
+			                   << "\tch : " << c << "\tnote : " << note << "\tvelocity: " << velocity << Logger::endl;
 			if (this->cartridge->validateChannel(c) == false) {
+				this->logger->info << "Invalid channel : " << c << Logger::endl;
 				return;
 			}
 			this->cartridge->setVolume(c, 0);
-			logger.info << "off >> \t"
-			            << "ch : " << c << "\tnote : " << note << "\tvelocity: " << velocity << Logger::endl;
 		};
+
+		this->logger->info << "Hello pokepico ;)" << Logger::endl;
 	}
 
 	void begin()
@@ -82,15 +97,17 @@ public:
 
 	Cartridge::Series detectCartridge()
 	{
+		this->logger->info << "Detect cartridge" << Logger::endl;
 		int c1 = gpio_get_level(Check1);
 		int c2 = gpio_get_level(Check2);
-		if (c1 > 0) {
-			// AY
-			return Cartridge::Series::AY38910;
-		}
-		else if (c2 > 0) {
+		this->logger->info << "Check1: " << c1 << ", Check2: " << c2 << Logger::endl;
+		if (c2 > 0 && c1 == 0) {
 			// SN
 			return Cartridge::Series::SN76489;
+		}
+		else if (c1 > 0 && c2 == 0) {
+			// AY
+			return Cartridge::Series::AY38910;
 		}
 		else {
 			// SAA
@@ -104,12 +121,18 @@ public:
 	{
 		switch (this->detectCartridge()) {
 			case Cartridge::Series::SAA1099:
+				this->logger->info << "Register SAA1099" << Logger::endl;
 				this->cartridge = new Cartridge::SAA1099C();
+				break;
 			case Cartridge::Series::SN76489:
+				this->logger->info << "Register SN76489" << Logger::endl;
+				this->cartridge = new Cartridge::SN76489C();
 				break;
 			case Cartridge::Series::AY38910:
+				this->logger->info << "Register AY38910" << Logger::endl;
 				break;
 			case Cartridge::Series::Undefined:
+				this->logger->info << "Undefined cartridge :(" << Logger::endl;
 				abort();
 				break;
 		}
