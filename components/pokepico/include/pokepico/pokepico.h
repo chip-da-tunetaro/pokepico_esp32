@@ -68,6 +68,7 @@ public:
 			                   << "\tvelocity: " << velocity
 			                   << "\tvolume: " << volume << Logger::endl;
 			this->playNote(c, note, volume);
+			vTaskDelay(10 / portTICK_PERIOD_MS);
 		};
 
 		this->interface->note_off_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
@@ -78,6 +79,7 @@ public:
 			                   << "\tnote : " << note
 			                   << "\tvelocity: " << velocity << Logger::endl;
 			this->playNote(c, note, 0);
+			vTaskDelay(10 / portTICK_PERIOD_MS);
 		};
 
 		this->logger->info << "Hello pokepico ;)" << Logger::endl;

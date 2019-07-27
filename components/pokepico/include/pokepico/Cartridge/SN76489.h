@@ -23,10 +23,10 @@ namespace Cartridge
 		SN76489C()
 		{
 			this->left = new PSG::SN76489(Pin::Latch, Pin::Clock, Pin::Data, WE, LeftCE);
-			// this->right = new PSG::SN76489(Pin::Latch, Pin::Clock, Pin::Data, WE, RightCE);
+			this->right = new PSG::SN76489(Pin::Latch, Pin::Clock, Pin::Data, WE, RightCE);
 
 			this->left->clear();
-			// this->right->clear();
+			this->right->clear();
 		}
 
 		~SN76489C()
@@ -41,13 +41,13 @@ namespace Cartridge
 		void setNote(PSG::Channel channel, uint8_t noteNumber)
 		{
 			this->left->setNote(channel, noteNumber);
-			// this->right->setNote(channel, noteNumber);
+			this->right->setNote(channel, noteNumber);
 		}
 
 		void setVolume(PSG::Channel channel, uint8_t volume)
 		{
 			this->left->setVolume(channel, volume);
-			// this->right->setVolume(channel, volume);
+			this->right->setVolume(channel, volume);
 		}
 
 		void setNoiseEnable(uint8_t channelbit)
