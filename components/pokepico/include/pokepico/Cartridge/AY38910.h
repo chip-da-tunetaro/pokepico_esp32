@@ -22,6 +22,7 @@ namespace Cartridge
 		AY38910C()
 		{
 			this->ay = new PSG::AY38910(Pin::Latch, Pin::Clock, Pin::Data, BC1, BCDIR, RST);
+			this->ay->setNoise(0x00);
 		}
 
 		~AY38910C()

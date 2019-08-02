@@ -1,3 +1,4 @@
+#include <FreeRTOS-cpp_task.h>
 #include <pokepico/pokepico.h>
 #include <sdkconfig.h>
 #include <string>
@@ -11,6 +12,6 @@ pokepico::Device *device;
 
 void app_main()
 {
-	device = new pokepico::Device("pokepico", 0x0c);
+	device = new pokepico::Device("pokepico");
 	device->begin();
 }

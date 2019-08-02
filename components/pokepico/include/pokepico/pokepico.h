@@ -9,6 +9,8 @@
 #include <pokepico/Cartridge/SAA1099.h>
 #include <pokepico/Cartridge/SN76489.h>
 
+#include <bitset>
+
 namespace pokepico
 {
 using namespace m2d;
@@ -28,6 +30,14 @@ private:
 	static const gpio_num_t Check3 = GPIO_NUM_36;
 	static const gpio_num_t Check4 = GPIO_NUM_39;
 
+	static const gpio_num_t LED1 = GPIO_NUM_12;
+	static const gpio_num_t LED2 = GPIO_NUM_14;
+	static const gpio_num_t LED3 = GPIO_NUM_15;
+
+	static const gpio_num_t Key = GPIO_NUM_27;
+
+	bool midi_received = false;
+
 	void congiureGPIO()
 	{
 		this->logger->info << "Congiure GPIO" << Logger::endl;
@@ -40,9 +50,34 @@ private:
 		gpio_config(&io_conf);
 	}
 
+	void configureLED()
+	{
+		this->logger->info << "Congiure LED" << Logger::endl;
+		gpio_config_t io_conf;
+		io_conf.intr_type = (gpio_int_type_t)GPIO_PIN_INTR_DISABLE;
+		io_conf.mode = GPIO_MODE_OUTPUT;
+		io_conf.pin_bit_mask = (1ULL << GPIO_NUM_12) | (1ULL << GPIO_NUM_14) | (1ULL << GPIO_NUM_15);
+		io_conf.pull_down_en = (gpio_pulldown_t)0;
+		io_conf.pull_up_en = (gpio_pullup_t)0;
+		gpio_config(&io_conf);
+	}
+
 	PSG::Channel convertChannel(MIDIBLE::MIDI::Channel channel)
 	{
 		return static_cast<PSG::Channel>(channel.rawValue() - 1);
+	}
+
+public:
+	Device(std::string name)
+	{
+		this->name = name;
+		this->logger = new Logger::Group("pokepico");
+		this->congiureGPIO();
+		this->configureLED();
+
+		this->setLedState(LED1, false);
+		this->setLedState(LED2, false);
+		this->setLedState(LED3, false);
 	}
 
 	long map(long x, long in_min, long in_max, long out_min, long out_max)
@@ -50,44 +85,15 @@ private:
 		return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 	}
 
-public:
-	Device(std::string name, uint16_t udid)
-	{
-		this->logger = new Logger::Group("pokepico");
-		this->congiureGPIO();
-		this->registerCartridge();
-
-		this->interface = new MIDIBLE::BLEInterface(name, udid);
-		this->interface->note_on_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
-			auto c = convertChannel(channel.rawValue());
-			auto volume = (uint8_t)map(velocity, 0, 128, 0, 15);
-			this->logger->info << "on:  "
-			                   << "\tMIDIBLE : " << channel.rawValue()
-			                   << "\tch : " << c
-			                   << "\tnote : " << note
-			                   << "\tvelocity: " << velocity
-			                   << "\tvolume: " << volume << Logger::endl;
-			this->playNote(c, note, volume);
-			vTaskDelay(10 / portTICK_PERIOD_MS);
-		};
-
-		this->interface->note_off_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
-			auto c = convertChannel(channel.rawValue());
-			this->logger->info << "off: "
-			                   << "\tMIDIBLE : " << channel.rawValue()
-			                   << "\tch : " << c
-			                   << "\tnote : " << note
-			                   << "\tvelocity: " << velocity << Logger::endl;
-			this->playNote(c, note, 0);
-			vTaskDelay(10 / portTICK_PERIOD_MS);
-		};
-
-		this->logger->info << "Hello pokepico ;)" << Logger::endl;
-	}
-
 	void begin()
 	{
-		this->interface->begin();
+		this->startLedTask();
+		this->logger->info << "Start BLE" << Logger::endl;
+		this->startBluetooth();
+		this->logger->info << "Register cartridge" << Logger::endl;
+		this->registerCartridge();
+		this->logger->info << "Hello pokepico ;)" << Logger::endl;
+		this->setLedState(LED2, true);
 	}
 
 	void playNote(PSG::Channel channel, uint8_t note, uint8_t velocity)
@@ -103,6 +109,19 @@ public:
 		else {
 			this->cartridge->setNote(channel, note);
 			this->cartridge->setVolume(channel, velocity);
+		}
+	}
+
+	void setLedState(gpio_num_t led, bool on)
+	{
+		if (led < LED1 && led > LED3) {
+			return;
+		}
+		if (on) {
+			gpio_set_level(led, 1);
+		}
+		else {
+			gpio_set_level(led, 0);
 		}
 	}
 
@@ -148,6 +167,55 @@ public:
 				abort();
 				break;
 		}
+	}
+
+	void startLedTask()
+	{
+		static m2d::FreeRTOS::Task led_task("LED Task", 10, 1024 * 3, [&] {
+			while (1) {
+				// Do something
+				if (this->midi_received) {
+					this->setLedState(LED1, true);
+					vTaskDelay(50 / portTICK_PERIOD_MS);
+					this->setLedState(LED1, false);
+					this->midi_received = false;
+				}
+				vTaskDelay(50 / portTICK_PERIOD_MS);
+			}
+		});
+		led_task.run();
+	}
+
+	void startBluetooth()
+	{
+		this->interface = new MIDIBLE::BLEInterface(this->name, 0x0c);
+		this->interface->onConnected([&]() {
+			this->setLedState(LED3, true);
+		});
+		this->interface->onDisconnected([&]() {
+			this->setLedState(LED3, false);
+		});
+		this->interface->note_on_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
+			auto c = convertChannel(channel.rawValue());
+			this->logger->info << "on:  "
+			                   << "\tMIDIBLE : " << channel.rawValue()
+			                   << "\tch : " << c
+			                   << "\tnote : " << note
+			                   << "\tvelocity: " << velocity << Logger::endl;
+			this->playNote(c, note, velocity);
+			this->midi_received = true;
+		};
+		this->interface->note_off_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
+			auto c = convertChannel(channel.rawValue());
+			this->logger->info << "off: "
+			                   << "\tMIDIBLE : " << channel.rawValue()
+			                   << "\tch : " << c
+			                   << "\tnote : " << note
+			                   << "\tvelocity: " << velocity << Logger::endl;
+			this->playNote(c, note, 0);
+		};
+		vTaskDelay(250 / portTICK_PERIOD_MS);
+		this->interface->begin();
 	}
 };
 }

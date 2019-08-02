@@ -54,6 +54,12 @@
         "ratio": "cpp",
         "sstream": "cpp",
         "streambuf": "cpp",
-        "system_error": "cpp"
+        "system_error": "cpp",
+        "__hash_table": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "regex": "cpp",
+        "set": "cpp",
+        "unordered_set": "cpp"
     }
 }

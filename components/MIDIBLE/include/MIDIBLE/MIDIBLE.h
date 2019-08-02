@@ -1,5 +1,7 @@
 #pragma once
 
+#include <esp_log.h>
+
 #include <BLE2902.h>
 #include <BLEAdvertising.h>
 #include <BLEDevice.h>
@@ -203,15 +205,25 @@ namespace MIDIBLE
 		{
 		}
 
+		void onConnected(std::function<void()> handler)
+		{
+			this->service_callbacks.connect_handler = handler;
+		}
+
+		void onDisconnected(std::function<void()> handler)
+		{
+			this->service_callbacks.disconnect_handler = handler;
+		}
+
 		void begin()
 		{
 			this->midi_service->start();
 
 			BLEAdvertising *advertising = this->server->getAdvertising();
 			BLEAdvertisementData advertising_data;
-			// auto udid = std::string((const char *)&this->device_udid);
 			// advertising_data.setFlags(0x04);
-			// advertising_data.setManufacturerData(udid);
+			auto udid = std::string((const char *)&this->device_udid);
+			advertising_data.setManufacturerData(udid);
 			advertising_data.setCompleteServices(BLEUUID(Const::ServiceUUID));
 			advertising->setAdvertisementData(advertising_data);
 			this->server->startAdvertising();
