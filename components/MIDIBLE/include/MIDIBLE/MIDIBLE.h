@@ -185,7 +185,7 @@ namespace MIDIBLE
 		{
 			this->name = name;
 			this->device_udid = udid;
-
+			ESP_LOGW("pokepico", "Name: %s", name.c_str());
 			BLEDevice::init(this->name);
 			this->server = BLEDevice::createServer();
 			this->server->setCallbacks(&service_callbacks);
@@ -222,8 +222,8 @@ namespace MIDIBLE
 			BLEAdvertising *advertising = this->server->getAdvertising();
 			BLEAdvertisementData advertising_data;
 			// advertising_data.setFlags(0x04);
-			auto udid = std::string((const char *)&this->device_udid);
-			advertising_data.setManufacturerData(udid);
+			// auto udid = std::string((const char *)&this->device_udid);
+			// advertising_data.setManufacturerData(udid);
 			advertising_data.setCompleteServices(BLEUUID(Const::ServiceUUID));
 			advertising->setAdvertisementData(advertising_data);
 			this->server->startAdvertising();
@@ -234,102 +234,113 @@ namespace MIDIBLE
 			MIDI::Type type = status.toType();
 			MIDI::Channel channel = status.toChannel();
 
-			switch (type.rawValue()) {
-				case MIDI::Type::Value::NoteOff:
-					if (this->note_off_handler) {
-						this->note_off_handler(channel, data1, data2);
-					}
-					break;
-				case MIDI::Type::Value::NoteOn:
-					if (this->note_on_handler) {
-						this->note_on_handler(channel, data1, data2);
-					}
-					break;
-				case MIDI::Type::Value::AfterTouchPoly:
-					if (this->after_touch_poly_handler) {
-						this->after_touch_poly_handler(channel, data1, data2);
-					}
-					break;
-				case MIDI::Type::Value::ControlChange:
-					if (this->control_change_handler) {
-						this->control_change_handler(channel, data1, data2);
-					}
-					break;
-				case MIDI::Type::Value::ProgramChange:
-					if (this->program_change_handler) {
-						this->program_change_handler(channel, data1);
-					}
-					break;
-				case MIDI::Type::Value::AfterTouchChannel:
-					if (this->after_touch_channel_handler) {
-						this->after_touch_channel_handler(channel, data1);
-					}
-					break;
-				case MIDI::Type::Value::PitchBend:
-					if (this->pitch_bend_handler) {
-						int value = (int)((data1 & 0x7f) | ((data2 & 0x7f) << 7)) + MIDI::PitchBend::Min;
-						this->pitch_bend_handler(channel, value);
-					}
-					break;
-				case MIDI::Type::Value::SystemExclusive:
-					break;
-				case MIDI::Type::Value::TimeCodeQuarterFrame:
-					if (this->time_code_quarter_frame_handler) {
-						this->time_code_quarter_frame_handler(data1);
-					}
-					break;
-				case MIDI::Type::Value::SongPosition:
-					if (this->song_position_handler) {
-						unsigned short value = unsigned((data1 & 0x7f) | ((data2 & 0x7f) << 7));
-						this->song_position_handler(value);
-					}
-					break;
-				case MIDI::Type::Value::SongSelect:
-					if (this->song_select_handler) {
-						this->song_select_handler(data1);
-					}
-					break;
-				case MIDI::Type::Value::TuneRequest:
-					if (this->tune_request_handler) {
-						this->tune_request_handler();
-					}
-					break;
-				case MIDI::Type::Value::Clock:
-					if (this->clock_handler) {
-						this->clock_handler();
-					}
-					break;
-				case MIDI::Type::Value::Tick:
-					break;
-				case MIDI::Type::Value::Start:
-					if (this->start_handler) {
-						this->start_handler();
-					}
-					break;
-				case MIDI::Type::Value::Continue:
-					if (this->continue_handler) {
-						this->continue_handler();
-					}
-					break;
-				case MIDI::Type::Value::Stop:
-					if (this->stop_handler) {
-						this->stop_handler();
-					}
-					break;
-				case MIDI::Type::Value::ActiveSensing:
-					if (this->active_sensing_handler) {
-						this->active_sensing_handler();
-					}
-					break;
-				case MIDI::Type::Value::SystemReset:
-					if (this->reset_handler) {
-						this->reset_handler();
-					}
-					break;
-				case MIDI::Type::Value::SystemExclusiveEnd:
-				case MIDI::Type::Value::Invalid:
-					break;
+			if (type.rawValue() == MIDI::Type::Value::NoteOff) {
+				if (this->note_off_handler) {
+					this->note_off_handler(channel, data1, data2);
+				}
 			}
+			if (type.rawValue() == MIDI::Type::Value::NoteOn) {
+				if (this->note_on_handler) {
+					this->note_on_handler(channel, data1, data2);
+				}
+			}
+
+			// switch (type.rawValue()) {
+			// 	case MIDI::Type::Value::NoteOff:
+			// 		if (this->note_off_handler) {
+			// 			this->note_off_handler(channel, data1, data2);
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::NoteOn:
+			// 		if (this->note_on_handler) {
+			// 			this->note_on_handler(channel, data1, data2);
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::AfterTouchPoly:
+			// 		if (this->after_touch_poly_handler) {
+			// 			this->after_touch_poly_handler(channel, data1, data2);
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::ControlChange:
+			// 		if (this->control_change_handler) {
+			// 			this->control_change_handler(channel, data1, data2);
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::ProgramChange:
+			// 		if (this->program_change_handler) {
+			// 			this->program_change_handler(channel, data1);
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::AfterTouchChannel:
+			// 		if (this->after_touch_channel_handler) {
+			// 			this->after_touch_channel_handler(channel, data1);
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::PitchBend:
+			// 		if (this->pitch_bend_handler) {
+			// 			int value = (int)((data1 & 0x7f) | ((data2 & 0x7f) << 7)) + MIDI::PitchBend::Min;
+			// 			this->pitch_bend_handler(channel, value);
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::SystemExclusive:
+			// 		break;
+			// 	case MIDI::Type::Value::TimeCodeQuarterFrame:
+			// 		if (this->time_code_quarter_frame_handler) {
+			// 			this->time_code_quarter_frame_handler(data1);
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::SongPosition:
+			// 		if (this->song_position_handler) {
+			// 			unsigned short value = unsigned((data1 & 0x7f) | ((data2 & 0x7f) << 7));
+			// 			this->song_position_handler(value);
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::SongSelect:
+			// 		if (this->song_select_handler) {
+			// 			this->song_select_handler(data1);
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::TuneRequest:
+			// 		if (this->tune_request_handler) {
+			// 			this->tune_request_handler();
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::Clock:
+			// 		if (this->clock_handler) {
+			// 			this->clock_handler();
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::Tick:
+			// 		break;
+			// 	case MIDI::Type::Value::Start:
+			// 		if (this->start_handler) {
+			// 			this->start_handler();
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::Continue:
+			// 		if (this->continue_handler) {
+			// 			this->continue_handler();
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::Stop:
+			// 		if (this->stop_handler) {
+			// 			this->stop_handler();
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::ActiveSensing:
+			// 		if (this->active_sensing_handler) {
+			// 			this->active_sensing_handler();
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::SystemReset:
+			// 		if (this->reset_handler) {
+			// 			this->reset_handler();
+			// 		}
+			// 		break;
+			// 	case MIDI::Type::Value::SystemExclusiveEnd:
+			// 	case MIDI::Type::Value::Invalid:
+			// 		break;
+			// }
 		}
 
 		void receive(uint8_t *buffer, uint8_t bufferSize)

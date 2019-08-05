@@ -53,12 +53,31 @@ namespace Cartridge
 		{
 		}
 
-		void setNoise(PSG::Channel channel, uint8_t mode)
+		void setNoise(PSG::Channel channel, uint8_t data)
 		{
+			if (data == 0x00) {
+				this->saa->setNoiseEnable(0x00);
+			}
+			else {
+				this->saa->setNoiseEnable(0xff);
+				this->saa->setNoise(channel, data);
+			}
 		}
 
-		void setEnvelope(PSG::Channel channel, uint8_t mode)
+		void setEnvelope(PSG::Channel channel, uint8_t data)
 		{
+			if (data == 0x00) {
+				this->saa->setEnvelope(channel, SAA1099::EnvelopeWaveform::WaveA);
+			}
+			else if (data == 0x01) {
+				this->saa->setEnvelope(channel, SAA1099::EnvelopeWaveform::WaveB);
+			}
+			else if (data == 0x02) {
+				this->saa->setEnvelope(channel, SAA1099::EnvelopeWaveform::WaveC);
+			}
+			else {
+				this->saa->setEnvelope(channel, SAA1099::EnvelopeWaveform::WaveD);
+			}
 		}
 	};
 }

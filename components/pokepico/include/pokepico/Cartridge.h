@@ -34,6 +34,8 @@ namespace Cartridge
 		virtual bool validateChannel(uint8_t channel) = 0;
 		virtual void setNote(PSG::Channel channel, uint8_t noteNumber) = 0;
 		virtual void setVolume(PSG::Channel channel, uint8_t volume) = 0;
+		virtual void setNoise(PSG::Channel channel, uint8_t data) = 0;
+		virtual void setEnvelope(PSG::Channel channel, uint8_t data) = 0;
 	};
 };
 }

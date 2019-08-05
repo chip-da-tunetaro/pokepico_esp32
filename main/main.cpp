@@ -12,6 +12,6 @@ pokepico::Device *device;
 
 void app_main()
 {
-	device = new pokepico::Device("pokepico");
+	device = new pokepico::Device("pokepico_3");
 	device->begin();
 }

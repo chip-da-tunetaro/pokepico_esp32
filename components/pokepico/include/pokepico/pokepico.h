@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nvs_flash.h>
+
 #include <MIDIBLE/MIDIBLE.h>
 #include <StreamLogger/Logger.h>
 #include <pokepico/Cartridge.h>
@@ -8,8 +10,6 @@
 #include <pokepico/Cartridge/AY38910.h>
 #include <pokepico/Cartridge/SAA1099.h>
 #include <pokepico/Cartridge/SN76489.h>
-
-#include <bitset>
 
 namespace pokepico
 {
@@ -21,7 +21,7 @@ class Device
 private:
 	std::string name;
 	uint8_t device_udid;
-	MIDIBLE::BLEInterface *interface;
+	// MIDIBLE::BLEInterface *interface;
 	Cartridge::Interface *cartridge;
 
 	Logger::Group *logger;
@@ -87,6 +87,13 @@ public:
 
 	void begin()
 	{
+		esp_err_t error = nvs_flash_init();
+		if (error == ESP_ERR_NVS_NO_FREE_PAGES) {
+			ESP_ERROR_CHECK(nvs_flash_erase());
+			error = nvs_flash_init();
+		}
+		ESP_ERROR_CHECK(error);
+
 		this->startLedTask();
 		this->logger->info << "Start BLE" << Logger::endl;
 		this->startBluetooth();
@@ -157,6 +164,12 @@ public:
 			case Cartridge::Series::SN76489:
 				this->logger->info << "Register SN76489" << Logger::endl;
 				this->cartridge = new Cartridge::SN76489C();
+				this->cartridge->setVolume(PSG::Channel::Channel1, 0);
+				this->cartridge->setVolume(PSG::Channel::Channel2, 0);
+				this->cartridge->setVolume(PSG::Channel::Channel3, 0);
+				this->cartridge->setVolume(PSG::Channel::Channel4, 0);
+				this->cartridge->setVolume(PSG::Channel::Channel5, 0);
+				this->cartridge->setVolume(PSG::Channel::Channel6, 0);
 				break;
 			case Cartridge::Series::AY38910:
 				this->logger->info << "Register AY38910" << Logger::endl;
@@ -173,10 +186,9 @@ public:
 	{
 		static m2d::FreeRTOS::Task led_task("LED Task", 10, 1024 * 3, [&] {
 			while (1) {
-				// Do something
 				if (this->midi_received) {
 					this->setLedState(LED1, true);
-					vTaskDelay(50 / portTICK_PERIOD_MS);
+					vTaskDelay(25 / portTICK_PERIOD_MS);
 					this->setLedState(LED1, false);
 					this->midi_received = false;
 				}
@@ -188,34 +200,53 @@ public:
 
 	void startBluetooth()
 	{
-		this->interface = new MIDIBLE::BLEInterface(this->name, 0x0c);
-		this->interface->onConnected([&]() {
-			this->setLedState(LED3, true);
+		static m2d::FreeRTOS::Task ble_task("BLE Task", 10, 1024 * 3, [&] {
+			auto interface = new MIDIBLE::BLEInterface(this->name, 0x0c);
+			interface->onConnected([&]() {
+				this->setLedState(LED3, true);
+				this->logger->info << "Connected" << Logger::endl;
+			});
+			interface->onDisconnected([&]() {
+				this->setLedState(LED3, false);
+				this->logger->info << "Disconnected" << Logger::endl;
+			});
+			interface->note_on_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
+				auto c = convertChannel(channel.rawValue());
+				this->logger->info << "on:  "
+				                   << "\tMIDIBLE : " << channel.rawValue()
+				                   << "\tch : " << c
+				                   << "\tnote : " << note
+				                   << "\tvelocity: " << velocity << Logger::endl;
+				// if (c == PSG::Channel::Channel1) {
+				// 	this->cartridge->setNoise(c, 0x00);
+				// }
+				// else if (c == PSG::Channel::Channel2) {
+				// 	this->cartridge->setNoise(c, 0x01);
+				// }
+				// else if (c == PSG::Channel::Channel3) {
+				// 	this->cartridge->setNoise(c, 0x02);
+				// }
+				// else if (c == PSG::Channel::Channel4) {
+				// 	this->cartridge->setNoise(c, 0x03);
+				// }
+				this->playNote(c, note, velocity);
+				this->midi_received = true;
+			};
+			interface->note_off_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
+				auto c = convertChannel(channel.rawValue());
+				this->logger->info << "off: "
+				                   << "\tMIDIBLE : " << channel.rawValue()
+				                   << "\tch : " << c
+				                   << "\tnote : " << note
+				                   << "\tvelocity: " << velocity << Logger::endl;
+				this->playNote(c, note, 0);
+			};
+			interface->begin();
+			while (1) {
+				vTaskDelay(50 / portTICK_PERIOD_MS);
+			}
 		});
-		this->interface->onDisconnected([&]() {
-			this->setLedState(LED3, false);
-		});
-		this->interface->note_on_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
-			auto c = convertChannel(channel.rawValue());
-			this->logger->info << "on:  "
-			                   << "\tMIDIBLE : " << channel.rawValue()
-			                   << "\tch : " << c
-			                   << "\tnote : " << note
-			                   << "\tvelocity: " << velocity << Logger::endl;
-			this->playNote(c, note, velocity);
-			this->midi_received = true;
-		};
-		this->interface->note_off_handler = [&](MIDIBLE::MIDI::Channel channel, uint8_t note, uint8_t velocity) {
-			auto c = convertChannel(channel.rawValue());
-			this->logger->info << "off: "
-			                   << "\tMIDIBLE : " << channel.rawValue()
-			                   << "\tch : " << c
-			                   << "\tnote : " << note
-			                   << "\tvelocity: " << velocity << Logger::endl;
-			this->playNote(c, note, 0);
-		};
-		vTaskDelay(250 / portTICK_PERIOD_MS);
-		this->interface->begin();
+		ble_task.run();
 	}
 };
 }

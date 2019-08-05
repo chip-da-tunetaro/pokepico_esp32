@@ -22,7 +22,6 @@ namespace Cartridge
 		AY38910C()
 		{
 			this->ay = new PSG::AY38910(Pin::Latch, Pin::Clock, Pin::Data, BC1, BCDIR, RST);
-			this->ay->setNoise(0x00);
 		}
 
 		~AY38910C()
@@ -48,8 +47,9 @@ namespace Cartridge
 		{
 		}
 
-		void setNoise(PSG::Channel channel, uint8_t mode)
+		void setNoise(PSG::Channel channel, uint8_t data)
 		{
+			this->ay->setNoise(data);
 		}
 
 		void setEnvelope(PSG::Channel channel, uint8_t mode)
